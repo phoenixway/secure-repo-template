@@ -182,26 +182,91 @@ select selected_backup_filename in "${BACKUP_FILES_ARRAY[@]}"; do
     break
   else
     echo "Неправильний вибір. Спробуйте ще раз."
-  fi
-done
+  fi#!/bin/bash
+set -e
 
-DOWNLOADED_ENCRYPTED_ARCHIVE_PATH="$TMP_RESTORE_FULL_PATH/$selected_backup_filename"
-DECRYPTED_TAR_ARCHIVE_PATH="$TMP_RESTORE_FULL_PATH/decrypted_backup.tar.gz"
-EXTRACTED_CONTENT_PATH="$TMP_RESTORE_FULL_PATH/extracted_content"
+# Визначаємо директорію скрипта та корінь репозиторію
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Скрипт працюватиме у власній тимчасовій директорії, але .env та AGE_KEY_FILE беруться з REPO_DIR
 
-echo "[⬇️] Завантаження '$selected_backup_filename' з '$SELECTED_REMOTE' до '$DOWNLOADED_ENCRYPTED_ARCHIVE_PATH'..."
-if ! rclone copyto "$SELECTED_REMOTE/$selected_backup_filename" "$DOWNLOADED_ENCRYPTED_ARCHIVE_PATH" --progress; then
-  echo "[❌] Помилка завантаження файлу бекапу."
+# Завантажуємо конфігурацію, якщо є .env
+ENV_FILE_PATH="$REPO_DIR/.env"
+if [ -f "$ENV_FILE_PATH" ]; then
+  # Обережно source .env, щоб не перезаписати змінні скрипта, якщо є конфлікти
+  # Краще читати змінні явно
+  # source "$ENV_FILE_PATH" # Може бути небезпечно, якщо .env містить команди
+  # Читаємо тільки потрібні змінні
+  # Використовуємо eval з обережністю або grep
+  # grep -E '^(AGE_KEY_FILE|CLOUD_REMOTES)=' "$ENV_FILE_PATH" > /tmp/env_vars.sh
+  # source /tmp/env_vars.sh
+  # rm /tmp/env_vars.sh
+  # Або безпечніше:
+  AGE_KEY_FILE_FROM_ENV=$(grep '^AGE_KEY_FILE=' "$ENV_FILE_PATH" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+  CLOUD_REMOTES_FROM_ENV=$(grep '^CLOUD_REMOTES=' "$ENV_FILE_PATH" | cut -d'=' -f2 | sed 's/^"//' | sed 's/"$//' | sed "s/^'//" | sed "s/'$//") # Обробка лапок
+else
+  echo "[❌] Файл конфігурації '$ENV_FILE_PATH' не знайдено."
+  echo "[ℹ️] Будь ласка, створіть .env з .env.example та налаштуйте його."
   exit 1
 fi
-echo "[✅] Файл бекапу завантажено."
 
-echo "[🔐] Розшифрування архіву '$DOWNLOADED_ENCRYPTED_ARCHIVE_PATH' -> '$DECRYPTED_TAR_ARCHIVE_PATH'..."
-if ! age -d -i "$DECRYPTED_AGE_KEY_PATH" -o "$DECRYPTED_TAR_ARCHIVE_PATH" "$DOWNLOADED_ENCRYPTED_ARCHIVE_PATH"; then
-  echo "[❌] Помилка розшифрування архіву."
-  # Видаляємо частково створений файл, якщо age його створив
-  [ -f "$DECRYPTED_TAR_ARCHIVE_PATH" ] && rm -f "$DECRYPTED_TAR_ARCHIVE_PATH"
+# Використовуємо змінні, прочитані з .env
+AGE_KEY_FILE_ABS_PATH="$REPO_DIR/$AGE_KEY_FILE_FROM_ENV" # Абсолютний шлях до ключа
+CLOUD_REMOTES="$CLOUD_REMOTES_FROM_ENV"
+
+# Перевірка наявності шляху до файлу приватного ключа
+if [ -z "$AGE_KEY_FILE_FROM_ENV" ]; then # Перевіряємо саме змінну з .env
+  echo "[❌] Змінна AGE_KEY_FILE не визначена у файлі .env."
   exit 1
+fi
+
+# Перевірка існування самого файлу приватного ключа
+if [ ! -f "$AGE_KEY_FILE_ABS_PATH" ]; then
+  echo "[❌] Файл приватного ключа '$AGE_KEY_FILE_ABS_PATH' (вказаний як '$AGE_KEY_FILE_FROM_ENV' у .env відносно '$REPO_DIR') не знайдено!"
+  exit 1
+fi
+
+# Перевірка, чи встановлено rclone
+if ! command -v rclone &> /dev/null; then
+    echo "[❌] Команду rclone не знайдено. Будь ласка, встановіть rclone."
+    exit 1
+fi
+
+# Перевірка, чи визначено CLOUD_REMOTES
+if [ -z "$CLOUD_REMOTES" ]; then
+  echo "[❌] Змінна CLOUD_REMOTES не визначена або порожня у файлі .env."
+  echo "[ℹ️] Неможливо вибрати хмарне сховище для відновлення."
+  exit 1
+fi
+
+TMP_RESTORE_PARENT_DIR="$REPO_DIR" # Де створювати tmp-restore
+TMP_RESTORE_DIR_NAME="tmp-restore-$(date +%Y%m%d-%H%M%S)"
+TMP_RESTORE_FULL_PATH="$TMP_RESTORE_PARENT_DIR/$TMP_RESTORE_DIR_NAME"
+
+mkdir -p "$TMP_RESTORE_FULL_PATH"
+# Переходимо в тимчасову директорію, щоб всі завантажені файли були там
+cd "$TMP_RESTORE_FULL_PATH"
+echo "[chdir] Робоча директорія для відновлення: $(pwd)"
+
+
+echo "[☁️] Отримання списку доступних хмарних сховищ з .env..."
+# Розбиваємо CLOUD_REMOTES на масив
+IFS=' ' read -r -a REMOTES_ARRAY <<< "$CLOUD_REMOTES"
+
+if [ ${#REMOTES_ARRAY[@]} -eq 0 ]; then
+    echo "[❌] Не знайдено жодного хмарного сховища в CLOUD_REMOTES у файлі .env."
+    exit 1
+fi
+
+echo "Доступні хмарні сховища для відновлення:"
+PS3="Виберіть номер хмарного сховища: "
+select remote_choice in "${REMOTES_ARRAY[@]}"; do
+  if [[ -n "$remote_choice" ]]; then
+    SELECTED_REMOTE="$remote_choice"
+    echo "[✅] Вибрано сховище: $SELECTED_REMOTE"
+    break
+  else
+    echo "Неправильний вибір. Спробуйте
 fi
 echo "[✅] Архів успішно розшифровано."
 
@@ -241,4 +306,4 @@ read -n 1 -s -r -p "Натисніть будь-яку клавішу для з�
 echo ""
 
 # cleanup_all буде викликано автоматично через trap EXIT
-echo "[🚪] Завершення роботи restore-from-cloud.sh."
+echo "[🚪] Завершення роботи restore-from-cloud.sh."дай повний encrypt-unencrypted.

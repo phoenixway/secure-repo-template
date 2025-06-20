@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+# TODO: sha256sum age-v1.1.1-linux-amd64.tar.gz check
 
 # Шлях, куди встановити
 INSTALL_DIR="$HOME/.local/bin"
