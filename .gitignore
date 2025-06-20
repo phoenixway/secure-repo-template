@@ -3,5 +3,12 @@
 !*.md.age
 
 age-key.txt
-backup/
-personal-scripts/
+.env
+
+personal-scripts/*
+!personal-scripts/.gitignore
+!personal-scripts/.gitkeep
+
+backup/*
+!backup/.gitignore
+!backup/.gitkeep
