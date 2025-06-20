@@ -210,3 +210,25 @@ bash scripts/backup-to-cloud.sh
 * age
 * rclone (for backups)
 * fzf (optional but useful)
+
+
+## Bonus: Create GitHub repository with cli
+
+```bash
+# OPTIONAL: create a new directory
+mkdir my-secure-notes && cd my-secure-notes
+
+# Initialize Git (if not already)
+git init
+git add .
+git commit -m "Initial commit"
+
+# Login with gh
+gh auth login
+
+# Create GitHub repo, set remote, and push (requires gh CLI)
+gh repo create my-secure-notes --public --source=. --remote=origin --push
+
+# Or 
+gh repo create my-secure-notes --private --source=. --remote=origin --push
+```
