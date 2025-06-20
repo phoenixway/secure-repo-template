@@ -1,11 +1,7 @@
-# Ігноруємо всі .md
 *.md
-
-# Але дозволяємо README.md
 !README.md
-
-# Дозволяємо зашифровані .md.age
 !*.md.age
 
-# Ігноруємо ключі
 age-key.txt
+backup/
+personal-scripts/
