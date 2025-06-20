@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+source .env
+
 SCRIPT_DIR="$(dirname "$0")"
 REPO_DIR="$SCRIPT_DIR/.."
 cd "$REPO_DIR"
