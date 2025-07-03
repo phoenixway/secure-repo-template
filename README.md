@@ -1,6 +1,6 @@
 # 🔐 Secure Repo Template
 
-This repository provides a hardened template for managing **encrypted personal data** (markdown, source code, sensitive text) inside a Git repository.  
+This repository provides a template for managing **hardened encrypted personal data** (markdown, source code, sensitive text) inside a Git repository.  
 It is designed to be resistant to:
 
 - Physical attacks on your device
