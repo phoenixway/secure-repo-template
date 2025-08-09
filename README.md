@@ -3,7 +3,7 @@
 This repository provides a template for managing **hardened encrypted personal data** (markdown, source code, sensitive text) inside a Git repository.  
 It is designed to be resistant to:
 
-- Physical attacks on your device
+- Physical attacks on your devices
 - Compromised or untrustworthy cloud providers
 - Remote screen/keyboard surveillance (when encryption is properly handled)
 
