@@ -1,5 +1,5 @@
 import click
-from secure_repo import ui, crypto, vcs, cloud, system
+from secure_repo import ui, crypto, vcs, cloud, system, initializer
 
 @click.group()
 def cli():
@@ -9,8 +9,11 @@ def cli():
 @cli.command()
 def init():
     """Initializes the secure repository (creates keys, .env file)."""
-    ui.echo_warning("Initialization function is not fully implemented yet.")
-    # Тут буде логіка з scenarios/init.sh
+    if initializer.run_initialization():
+        ui.echo_success("\nInitialization complete! Your secure repository is ready.")
+        ui.echo_info("Try creating a .md file and run 'python manager.py encrypt'.")
+    else:
+        ui.echo_error("\nInitialization failed. Please check the messages above.")
 
 @cli.command()
 def check_deps():
@@ -22,13 +25,11 @@ def check_deps():
 def encrypt():
     """Encrypts all unencrypted .md files and commits them to Git."""
     ui.echo_step("1/2: Encrypting local files...")
-    # Ця функціональність замінює encrypt-unencrypted.sh
     count = crypto.encrypt_unencrypted_files()
     if count == 0:
         ui.echo_info("No new or modified files to encrypt.")
 
     ui.echo_step("2/2: Committing to Git...")
-    # Ця функціональність замінює частину логіки з encrypt-n-store.sh
     if vcs.has_changes():
         vcs.add()
         vcs.commit("chore: Update encrypted notes")
@@ -41,11 +42,9 @@ def encrypt():
 def push(target):
     """Pushes changes to a remote target (git or rclone)."""
     if target == 'git':
-        # Ця функціональність замінює частину логіки з encrypt-n-store.sh
         ui.echo_info("Pushing changes to remote Git repository...")
         vcs.push()
     elif target == 'rclone':
-        # Ця функціональність замінює push-to-clouds.sh
         ui.echo_info("Creating and uploading backup to cloud storage...")
         cloud.create_and_upload_backup()
     

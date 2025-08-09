@@ -18,11 +18,10 @@ def has_changes():
 def add():
     """Adds all relevant files to the Git index."""
     if not repo: return
-    # Додаємо всі .md.age файли та README.md
-    files_to_add = [f for f in os.listdir('.') if f.endswith('.md.age')]
-    files_to_add.append('README.md')
-    repo.index.add(files_to_add)
-    ui.echo_info(f"Added {len(files_to_add)} file(s) to index.")
+    # Файли, які ми зазвичай додаємо при шифруванні
+    files_to_track = [f for f in os.listdir('.') if f.endswith('.md.age')]
+    files_to_track.append('README.md')
+    add_files(files_to_track)
 
 def commit(message_prefix="chore: Update encrypted notes"):
     """Commits staged changes with a timestamp."""
@@ -42,3 +41,12 @@ def push():
             ui.echo_error(str(e))
     else:
         ui.echo_warning("Remote 'origin' not configured. Skipping push.")
+
+def add_files(files_to_add: list):
+    """Adds a specific list of files and directories to the Git index."""
+    if not repo: return
+    try:
+        repo.index.add(files_to_add)
+        ui.echo_info(f"Added {len(files_to_add)} item(s) to index.")
+    except git.GitCommandError as e:
+        ui.echo_error(f"Failed to add files to Git: {e}")
