@@ -48,3 +48,9 @@ temp_age_key.* # Для тимчасових розшифрованих ключ
 # --- ОС специфічні файли ---
 .DS_Store
 Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/

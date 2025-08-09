@@ -1,0 +1,6 @@
+click
+python-dotenv
+colorama
+pytest
+pytest-mock
+GitPython
