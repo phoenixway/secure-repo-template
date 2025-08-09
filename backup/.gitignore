@@ -1,6 +1,0 @@
-# Ignore all backup contents
-*
-
-# Keep only this file to retain the folder
-!.gitignore
-!.gitkeep
