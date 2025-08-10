@@ -1,23 +1,50 @@
 import os
 from dotenv import load_dotenv
 
-# Визначаємо базові шляхи відносно кореня проєкту
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-CONFIG_DIR = os.path.join(ROOT_DIR, "config")
-VAULT_DIR = os.path.join(ROOT_DIR, "vault")
-KEYS_DIR = os.path.join(CONFIG_DIR, "keys")
+def get_root_dir():
+    """Повертає поточну робочу директорію."""
+    return os.getcwd()
 
-# Явно вказуємо шлях до .env файлу
-ENV_PATH = os.path.join(CONFIG_DIR, ".env")
-load_dotenv(dotenv_path=ENV_PATH)
+def get_config_dir():
+    return os.path.join(get_root_dir(), "config")
 
-# Читаємо змінні
-AGE_RECIPIENT = os.getenv("AGE_RECIPIENT")
-MASTER_KEY_PATH = os.getenv("MASTER_AGE_KEY_STORAGE_PATH")
+def get_vault_dir():
+    return os.path.join(get_root_dir(), "vault")
 
-# Обробляємо шлях до ключа: якщо він відносний, робимо його абсолютним від кореня проєкту
-if MASTER_KEY_PATH and not os.path.isabs(MASTER_KEY_PATH):
-    MASTER_KEY_PATH = os.path.join(ROOT_DIR, MASTER_KEY_PATH)
+def get_keys_dir():
+    return os.path.join(get_config_dir(), "keys")
 
-CLOUD_REMOTES = os.getenv("CLOUD_REMOTES", "").split()
-EDITOR = os.getenv("EDITOR")
+def get_env_path():
+    return os.path.join(get_config_dir(), ".env")
+
+_config_cache = {}
+
+def load_config():
+    """Завантажує змінні з .env файлу і кешує їх."""
+    global _config_cache
+    if _config_cache:
+        return
+
+    load_dotenv(dotenv_path=get_env_path())
+    
+    master_key_path = os.getenv("MASTER_AGE_KEY_STORAGE_PATH")
+    if master_key_path and not os.path.isabs(master_key_path):
+        master_key_path = os.path.join(get_root_dir(), master_key_path)
+
+    _config_cache = {
+        "AGE_RECIPIENT": os.getenv("AGE_RECIPIENT"),
+        "MASTER_KEY_PATH": master_key_path,
+        "CLOUD_REMOTES": os.getenv("CLOUD_REMOTES", "").split(),
+        "EDITOR": os.getenv("EDITOR"),
+    }
+
+def get_config(key):
+    """Повертає значення конфігурації. Завантажує, якщо потрібно."""
+    if not _config_cache:
+        load_config()
+    return _config_cache.get(key)
+
+def clear_config_cache():
+    """Очищує кеш конфігурації. Потрібно для тестів."""
+    global _config_cache
+    _config_cache = {}

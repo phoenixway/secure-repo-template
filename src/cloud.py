@@ -5,11 +5,15 @@ import tarfile
 
 def create_and_upload_backup():
     """Creates an encrypted archive and uploads it to all configured rclone remotes."""
-    if not config.CLOUD_REMOTES:
+    # ОНОВЛЕНО: Використовуємо функції для отримання конфігурації
+    cloud_remotes = config.get_config("CLOUD_REMOTES")
+    age_recipient = config.get_config("AGE_RECIPIENT")
+
+    if not cloud_remotes:
         ui.echo_info("CLOUD_REMOTES not configured in .env. Skipping cloud backup.")
         return
     
-    if not config.AGE_RECIPIENT:
+    if not age_recipient:
         ui.echo_error("AGE_RECIPIENT not set. Cannot create backup.")
         return
 
@@ -23,34 +27,32 @@ def create_and_upload_backup():
     
     ui.echo_info("Creating local archive...")
     
-    # ОНОВЛЕНО: Створюємо архів програмно для кращого контролю над шляхами
+    root_dir = config.get_root_dir()
     try:
         with tarfile.open(tar_path, "w:gz") as tar:
-            # Додаємо важливі файли та папки з кореня проєкту
-            # arcname='' гарантує, що вміст буде в корені архіву
-            tar.add(os.path.join(config.ROOT_DIR, 'src'), arcname='src')
-            tar.add(os.path.join(config.ROOT_DIR, 'config'), arcname='config')
-            tar.add(os.path.join(config.ROOT_DIR, 'vault'), arcname='vault')
-            tar.add(os.path.join(config.ROOT_DIR, '.gitignore'), arcname='.gitignore')
-            tar.add(os.path.join(config.ROOT_DIR, 'manager.py'), arcname='manager.py')
-            # Додаємо історію Git
+            # Функції для отримання шляхів використовуються неявно через config
+            tar.add(os.path.join(root_dir, 'src'), arcname='src')
+            tar.add(os.path.join(root_dir, 'config'), arcname='config')
+            tar.add(os.path.join(root_dir, 'vault'), arcname='vault')
+            tar.add(os.path.join(root_dir, '.gitignore'), arcname='.gitignore')
+            tar.add(os.path.join(root_dir, 'manager.py'), arcname='manager.py')
             if os.path.isdir('.git'):
-                tar.add(os.path.join(config.ROOT_DIR, '.git'), arcname='.git')
-
+                tar.add(os.path.join(root_dir, '.git'), arcname='.git')
     except Exception as e:
         ui.echo_error(f"Failed to create tar archive: {e}")
         return
 
     ui.echo_info("Encrypting archive...")
-    age_cmd = ["age", "-r", config.AGE_RECIPIENT, "-o", age_path, tar_path]
+    age_cmd = ["age", "-r", age_recipient, "-o", age_path, tar_path]
     if not system.run_command(age_cmd):
         os.remove(tar_path)
         return
 
-    system.run_command(["shred", "-u", tar_path])
+    # Замінюємо shred на os.remove для більшої портативності
+    os.remove(tar_path)
 
     ui.echo_info("Uploading to cloud remotes...")
-    for remote in config.CLOUD_REMOTES:
+    for remote in cloud_remotes:
         ui.echo_info(f"--> Uploading to {remote}")
         rclone_cmd = ["rclone", "copy", age_path, remote, "--progress"]
         system.run_command(rclone_cmd)

@@ -4,23 +4,24 @@ import re
 from . import ui, system, vcs, config
 
 def run_initialization():
-    """Runs the full initialization process using the new directory structure."""
+    """Runs the full initialization process using dynamic paths from config module."""
     ui.echo_step("1/5: Running pre-flight checks...")
-    if os.path.exists(config.ENV_PATH):
-        ui.echo_error(f"Repository already initialized (found {config.ENV_PATH}).")
+    # ОНОВЛЕНО: Використовуємо функції для отримання шляхів
+    if os.path.exists(config.get_env_path()):
+        ui.echo_error(f"Repository already initialized (found {config.get_env_path()}).")
         return False
-    if not os.path.exists(os.path.join(config.CONFIG_DIR, '.env.example')):
+    if not os.path.exists(os.path.join(config.get_config_dir(), '.env.example')):
         ui.echo_error(".env.example not found in config/ directory.")
         return False
     if not system.check_dependencies():
-        ui.echo_error("Some dependencies are missing. Please install them and try again.")
+        ui.echo_error("Some dependencies are missing.")
         return False
 
     ui.echo_step("2/5: Creating directories and generating new age key...")
-    os.makedirs(config.KEYS_DIR, exist_ok=True)
-    os.makedirs(config.VAULT_DIR, exist_ok=True)
+    os.makedirs(config.get_keys_dir(), exist_ok=True)
+    os.makedirs(config.get_vault_dir(), exist_ok=True)
     
-    key_file_path = os.path.join(config.KEYS_DIR, "age-key.txt")
+    key_file_path = os.path.join(config.get_keys_dir(), "age-key.txt")
     
     if not system.run_command(["age-keygen", "-o", key_file_path]):
         return False
@@ -54,26 +55,24 @@ def run_initialization():
         return False
     ui.echo_success(f"Your public key (recipient): {public_key}")
     
-    shutil.copy(os.path.join(config.CONFIG_DIR, '.env.example'), config.ENV_PATH)
+    env_path = config.get_env_path()
+    shutil.copy(os.path.join(config.get_config_dir(), '.env.example'), env_path)
     
-    with open(config.ENV_PATH, 'r') as f: content = f.read()
+    with open(env_path, 'r') as f: content = f.read()
     
-    # Записуємо відносний шлях у .env
-    master_key_path_relative = os.path.relpath(master_key_path_abs, config.ROOT_DIR)
+    master_key_path_relative = os.path.relpath(master_key_path_abs, config.get_root_dir())
     content = re.sub(r'^(MASTER_AGE_KEY_STORAGE_PATH=).*', f'\\1"{master_key_path_relative}"', content, flags=re.MULTILINE)
     content = re.sub(r'^(AGE_RECIPIENT=).*', f'\\1"{public_key}"', content, flags=re.MULTILINE)
     
-    with open(config.ENV_PATH, 'w') as f: f.write(content)
-    ui.echo_success(f".env file created and configured in {config.CONFIG_DIR}/")
+    with open(env_path, 'w') as f: f.write(content)
+    ui.echo_success(f".env file created and configured in {config.get_config_dir()}/")
 
     ui.echo_step("5/5: Finalizing setup...")
     os.makedirs("backup", exist_ok=True)
     
-    if vcs.repo:
-        ui.echo_info("Creating initial Git commit...")
-        # Додаємо всі основні файли
-        vcs.add_files(['.gitignore', 'config/.env.example', 'README.md', 'manager.py', 'requirements.txt', 'src/'])
-        vcs.commit("feat: Initialize secure repository structure")
-        ui.echo_success("Initial commit created.")
+    ui.echo_info("Creating initial Git commit...")
+    vcs.add_files(['.gitignore', 'config/.env.example', 'README.md', 'manager.py', 'requirements.txt', 'src/'])
+    vcs.commit("feat: Initialize secure repository structure")
+    ui.echo_success("Initial commit created.")
     
     return True

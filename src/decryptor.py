@@ -5,14 +5,17 @@ from . import ui, system, config
 
 def _get_identity_file():
     """Gets the path to the age key, decrypting it if necessary."""
-    if not config.MASTER_KEY_PATH or not os.path.exists(config.MASTER_KEY_PATH):
-        ui.echo_error(f"Master key file not found at: {config.MASTER_KEY_PATH}")
+    # ОНОВЛЕНО: Використовуємо функцію для отримання конфігурації
+    master_key_path = config.get_config("MASTER_KEY_PATH")
+
+    if not master_key_path or not os.path.exists(master_key_path):
+        ui.echo_error(f"Master key file not found at: {master_key_path}")
         return None, None
 
-    if config.MASTER_KEY_PATH.endswith(".gpg"):
+    if master_key_path.endswith(".gpg"):
         ui.echo_info("Master key is GPG encrypted. Decrypting...")
         temp_key_file = tempfile.NamedTemporaryFile(mode='w+', delete=True)
-        gpg_cmd = ["gpg", "--decrypt", "-o", temp_key_file.name, config.MASTER_KEY_PATH]
+        gpg_cmd = ["gpg", "--decrypt", "-o", temp_key_file.name, master_key_path]
         if system.run_command(gpg_cmd):
             os.chmod(temp_key_file.name, 0o600)
             return temp_key_file.name, temp_key_file
@@ -20,7 +23,7 @@ def _get_identity_file():
             temp_key_file.close()
             return None, None
     else:
-        return config.MASTER_KEY_PATH, None
+        return master_key_path, None
 
 def run_decryption():
     """Main decryption script, works with the vault/ directory."""
@@ -33,16 +36,18 @@ def run_decryption():
         return
 
     try:
-        if not os.path.isdir(config.VAULT_DIR):
-            ui.echo_info(f"Directory '{config.VAULT_DIR}' not found.")
+        # ОНОВЛЕНО: Використовуємо функцію для отримання шляху
+        vault_dir = config.get_vault_dir()
+        if not os.path.isdir(vault_dir):
+            ui.echo_info(f"Directory '{vault_dir}' not found.")
             return
 
-        age_files = [f for f in os.listdir(config.VAULT_DIR) if f.endswith('.md.age')]
+        age_files = [f for f in os.listdir(vault_dir) if f.endswith('.md.age')]
         if not age_files:
-            ui.echo_info(f"No encrypted (.md.age) files found in '{config.VAULT_DIR}'.")
+            ui.echo_info(f"No encrypted files found in '{vault_dir}'.")
             return
         
-        preview_command = f"age -d -i '{identity_file}' -o /dev/stdout {config.VAULT_DIR}/{{}} 2>/dev/null | head -n 30"
+        preview_command = f"age -d -i '{identity_file}' -o /dev/stdout {vault_dir}/{{}} 2>/dev/null | head -n 30"
         fzf_command = ["fzf", "--multi", f"--preview={preview_command}"]
         
         files_input = "\n".join(age_files)
@@ -57,7 +62,7 @@ def run_decryption():
 
         ui.echo_step("Decrypting selected files...")
         for filename in selected_filenames:
-            encrypted_file = os.path.join(config.VAULT_DIR, filename)
+            encrypted_file = os.path.join(vault_dir, filename)
             decrypted_file = encrypted_file.replace('.age', '')
             
             if os.path.exists(decrypted_file) and not ui.prompt_yes_no(f"Overwrite '{decrypted_file}'?"):
@@ -68,9 +73,10 @@ def run_decryption():
                 ui.echo_success(f"Decrypted -> {decrypted_file}")
                 decrypted_files.append(decrypted_file)
 
-        if decrypted_files and config.EDITOR:
-            if ui.prompt_yes_no(f"Open decrypted file(s) in '{config.EDITOR}'?"):
-                system.run_command([config.EDITOR] + decrypted_files)
+        editor = config.get_config("EDITOR")
+        if decrypted_files and editor:
+            if ui.prompt_yes_no(f"Open decrypted file(s) in '{editor}'?"):
+                system.run_command([editor] + decrypted_files)
     finally:
         if temp_key_handle:
             ui.echo_info("Cleaning up temporary key file...")
