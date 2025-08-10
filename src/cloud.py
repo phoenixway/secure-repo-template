@@ -1,6 +1,7 @@
 from . import ui, system, config
 import datetime
 import os
+import tarfile
 
 def create_and_upload_backup():
     """Creates an encrypted archive and uploads it to all configured rclone remotes."""
@@ -21,23 +22,31 @@ def create_and_upload_backup():
     age_path = f"{tar_path}.age"
     
     ui.echo_info("Creating local archive...")
-    # Архівуємо .git, README.md та всі *.md.age файли
-    tar_cmd = ["tar", "czf", tar_path, "--exclude=.git/hooks", ".git", "README.md"]
-    # Додаємо файли .md.age
-    age_files = [f for f in os.listdir('.') if f.endswith('.md.age')]
-    if age_files:
-        tar_cmd.extend(age_files)
     
-    if not system.run_command(tar_cmd):
-        return # Помилка при створенні архіву
+    # ОНОВЛЕНО: Створюємо архів програмно для кращого контролю над шляхами
+    try:
+        with tarfile.open(tar_path, "w:gz") as tar:
+            # Додаємо важливі файли та папки з кореня проєкту
+            # arcname='' гарантує, що вміст буде в корені архіву
+            tar.add(os.path.join(config.ROOT_DIR, 'src'), arcname='src')
+            tar.add(os.path.join(config.ROOT_DIR, 'config'), arcname='config')
+            tar.add(os.path.join(config.ROOT_DIR, 'vault'), arcname='vault')
+            tar.add(os.path.join(config.ROOT_DIR, '.gitignore'), arcname='.gitignore')
+            tar.add(os.path.join(config.ROOT_DIR, 'manager.py'), arcname='manager.py')
+            # Додаємо історію Git
+            if os.path.isdir('.git'):
+                tar.add(os.path.join(config.ROOT_DIR, '.git'), arcname='.git')
+
+    except Exception as e:
+        ui.echo_error(f"Failed to create tar archive: {e}")
+        return
 
     ui.echo_info("Encrypting archive...")
     age_cmd = ["age", "-r", config.AGE_RECIPIENT, "-o", age_path, tar_path]
     if not system.run_command(age_cmd):
-        os.remove(tar_path) # Прибираємо за собою
+        os.remove(tar_path)
         return
 
-    # Безпечно видаляємо незашифрований архів
     system.run_command(["shred", "-u", tar_path])
 
     ui.echo_info("Uploading to cloud remotes...")

@@ -8,9 +8,10 @@ import urllib.request
 from . import ui
 import click
 
-# run_command залишається без змін
-def run_command(command, capture=False, shell=False):
-    """A helper to run external commands."""
+# --- ВИПРАВЛЕННЯ ТУТ ---
+# Повертаємо параметр stdin_input, який потрібен для fzf
+def run_command(command, capture=False, shell=False, stdin_input=None):
+    """A helper to run external commands, with optional stdin."""
     try:
         result = subprocess.run(
             command,
@@ -18,7 +19,8 @@ def run_command(command, capture=False, shell=False):
             capture_output=capture,
             text=True,
             encoding='utf-8',
-            shell=shell
+            shell=shell,
+            input=stdin_input # Використовуємо цей параметр
         )
         return result
     except FileNotFoundError:
@@ -26,10 +28,13 @@ def run_command(command, capture=False, shell=False):
         return None
     except subprocess.CalledProcessError as e:
         ui.echo_error(f"Error executing command: {' '.join(command)}")
-        ui.echo_error(e.stderr or e.stdout)
+        # Показуємо stderr якщо він є, інакше stdout
+        output = e.stderr or e.stdout
+        if output:
+            ui.echo_error(output)
         return None
 
-# _install_rclone та _install_age залишаються без змін
+# Решта файлу залишається без змін
 def _install_rclone():
     """Provides instructions for installing rclone."""
     ui.echo_info("To install rclone, please run the following command in your terminal:")
@@ -38,18 +43,24 @@ def _install_rclone():
 
 def _install_age():
     """Downloads age and provides the user with commands to install it."""
-    # ... (код без змін)
     ui.echo_info("Attempting to download 'age' from GitHub releases...")
+    
     os_type = platform.system().lower()
     arch = platform.machine()
     version = "v1.2.0"
-    if arch == "x86_64": arch = "amd64"
-    elif arch == "aarch64": arch = "arm64"
+
+    if arch == "x86_64":
+        arch = "amd64"
+    elif arch == "aarch64":
+        arch = "arm64"
     else:
         ui.echo_error(f"Unsupported architecture: {arch}")
         return False
+
     url = f"https://github.com/FiloSottile/age/releases/download/{version}/age-{version}-{os_type}-{arch}.tar.gz"
+    
     tmpdir = tempfile.mkdtemp()
+    
     tar_path = os.path.join(tmpdir, "age.tar.gz")
     ui.echo_info(f"Downloading: {url}")
     try:
@@ -59,6 +70,7 @@ def _install_age():
         ui.echo_error(f"Failed to download age: {e}")
         shutil.rmtree(tmpdir)
         return False
+
     ui.echo_info("Extracting archive...")
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
@@ -67,8 +79,11 @@ def _install_age():
         ui.echo_error(f"Failed to extract archive: {e}")
         shutil.rmtree(tmpdir)
         return False
+
     age_dir = os.path.join(tmpdir, "age")
+    
     ui.echo_step("To complete the installation, please copy and run these commands:")
+    
     install_instructions = f"""
 # --- Start of commands ---
 sudo mv "{age_dir}/age" /usr/local/bin/
@@ -76,12 +91,13 @@ sudo mv "{age_dir}/age-keygen" /usr/local/bin/
 # --- End of commands ---
 """
     click.echo(click.style(install_instructions, fg="yellow"))
+    
     ui.echo_warning(f"After installation, you can manually delete the temporary directory:")
     ui.echo_warning(f"  rm -rf {tmpdir}")
     ui.echo_info("Now, please start this script again.")
+
     return False
 
-# --- НОВА ФУНКЦІЯ ---
 def _install_fzf():
     """
     Installs fzf by cloning the official repository and running the install script.
@@ -93,7 +109,6 @@ def _install_fzf():
 
     ui.echo_info("fzf can be installed from its official git repository.")
     if ui.prompt_yes_no("Do you want to proceed with fzf installation?"):
-        # Використовуємо `os.path.expanduser` для надійного отримання домашньої директорії
         fzf_dir = os.path.expanduser("~/.fzf")
         
         if os.path.exists(fzf_dir):
@@ -107,7 +122,6 @@ def _install_fzf():
         ui.echo_info("Running fzf installation script. It may ask you some questions.")
         ui.echo_warning("Answer 'y' to enable fuzzy completion and key bindings for the best experience.")
         
-        # Запускаємо інтерактивний інсталятор
         install_script_path = os.path.join(fzf_dir, "install")
         if run_command([install_script_path]):
             ui.echo_success("fzf installation script finished.")
@@ -126,7 +140,6 @@ def check_dependencies():
         "gpg": None,
         "rclone": _install_rclone,
         "shred": None,
-        # ВИПРАВЛЕНО: Підключаємо нову функцію-інсталятор
         "fzf": _install_fzf,
     }
     
