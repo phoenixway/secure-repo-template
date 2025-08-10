@@ -1,4 +1,3 @@
-# src/crypto.py
 import os
 from . import ui, system, config
 
@@ -6,7 +5,7 @@ ENCRYPTABLE_EXTENSIONS = ('.md', '.txt', '.doc', '.docx', '.rtf')
 VAULT_DIR = "vault"
 
 def encrypt_unencrypted_files():
-    """Encrypts all found files with specified extensions in vault/."""
+    """Encrypts all found files with specified extensions in vault/ and removes the originals."""
     if not config.AGE_RECIPIENT:
         ui.echo_error("AGE_RECIPIENT is not set in .env file.")
         return 0
@@ -29,8 +28,8 @@ def encrypt_unencrypted_files():
         
         age_cmd = ["age", "-r", config.AGE_RECIPIENT, "-o", encrypted_path, source_path]
         if system.run_command(age_cmd):
-            # ВИПРАВЛЕНО: Використовуємо надійний вбудований метод Python для видалення
             try:
+                # Використовуємо надійний вбудований метод Python для видалення
                 os.remove(source_path)
                 encrypted_count += 1
             except OSError as e:
