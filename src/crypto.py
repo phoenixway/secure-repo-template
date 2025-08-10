@@ -1,9 +1,13 @@
 import os
 from . import ui, system, config
 
-# src/crypto.py
+# ВИПРАВЛЕННЯ 1: Додаємо відсутню константу
+ENCRYPTABLE_EXTENSIONS = ('.md', '.txt', '.doc', '.docx', '.rtf')
+
+VAULT_DIR = "vault"
+
 def encrypt_unencrypted_files():
-    """Encrypts all found .md files in vault/ and shreds the originals."""
+    """Encrypts all found files with specified extensions in vault/."""
     if not config.AGE_RECIPIENT:
         ui.echo_error("AGE_RECIPIENT is not set in .env file.")
         return 0
@@ -25,14 +29,12 @@ def encrypt_unencrypted_files():
         ui.echo_info(f"Encrypting {source_path}...")
         
         age_cmd = ["age", "-r", config.AGE_RECIPIENT, "-o", encrypted_path, source_path]
-        # Перевіряємо, що шифрування пройшло успішно
         if system.run_command(age_cmd):
-            # ВИПРАВЛЕНО: Тепер ми перевіряємо, що і shred спрацював
+            # ВИПРАВЛЕННЯ 2: Робимо перевірку результату shred надійнішою
             shred_cmd = ["shred", "-u", source_path]
             if system.run_command(shred_cmd):
                 encrypted_count += 1
             else:
                 ui.echo_error(f"Failed to shred original file: {source_path}")
                 ui.echo_warning(f"Encrypted file '{encrypted_path}' was created, but original was not deleted.")
-
     return encrypted_count
