@@ -1,9 +1,8 @@
+# src/crypto.py
 import os
 from . import ui, system, config
 
-# ВИПРАВЛЕННЯ 1: Додаємо відсутню константу
 ENCRYPTABLE_EXTENSIONS = ('.md', '.txt', '.doc', '.docx', '.rtf')
-
 VAULT_DIR = "vault"
 
 def encrypt_unencrypted_files():
@@ -30,11 +29,11 @@ def encrypt_unencrypted_files():
         
         age_cmd = ["age", "-r", config.AGE_RECIPIENT, "-o", encrypted_path, source_path]
         if system.run_command(age_cmd):
-            # ВИПРАВЛЕННЯ 2: Робимо перевірку результату shred надійнішою
-            shred_cmd = ["shred", "-u", source_path]
-            if system.run_command(shred_cmd):
+            # ВИПРАВЛЕНО: Використовуємо надійний вбудований метод Python для видалення
+            try:
+                os.remove(source_path)
                 encrypted_count += 1
-            else:
-                ui.echo_error(f"Failed to shred original file: {source_path}")
+            except OSError as e:
+                ui.echo_error(f"Failed to delete original file {source_path}: {e}")
                 ui.echo_warning(f"Encrypted file '{encrypted_path}' was created, but original was not deleted.")
     return encrypted_count
