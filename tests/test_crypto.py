@@ -1,34 +1,43 @@
-import os
 from secure_repo import crypto, config
+import os
 
-# `mocker` - це потужний інструмент з `pytest-mock`
-def test_encrypt_unencrypted_files(mocker):
+# ВИПРАВЛЕНО: Використовуємо фікстуру `fs` напряму
+def test_encrypt_new_file(mocker, fs):
     """
-    Тест перевіряє, що функція знаходить правильний файл,
-    викликає `age` та `shred` і повертає правильну кількість.
+    Тестує шифрування нового файлу.
     """
-    # 1. Налаштування Моків (Mocks)
-    # Імітуємо системні виклики, щоб не виконувати реальні команди
-    mock_run = mocker.patch('secure_repo.system.run_command', return_value=True)
-    
-    # Імітуємо, що AGE_RECIPIENT встановлено
+    # 1. Налаштування середовища
+    # Тепер `fs` - це об'єкт віртуальної файлової системи
+    fs.create_file("note.md", contents="secret data")
     mocker.patch.object(config, 'AGE_RECIPIENT', 'age1testrecipient')
-    
-    # Імітуємо, що os.listdir знаходить один файл для шифрування
-    mocker.patch('os.listdir', return_value=['note.md', 'README.md'])
-    mocker.patch('os.path.exists', return_value=False) # Файл .age ще не існує
-    
+    mock_run = mocker.patch('secure_repo.system.run_command', return_value=True)
+
+    # 2. Виклик функції
+    count = crypto.encrypt_unencrypted_files()
+
+    # 3. Перевірки
+    assert count == 1
+    expected_age_call = mocker.call(["age", "-r", "age1testrecipient", "-o", "note.md.age", "note.md"])
+    expected_shred_call = mocker.call(["shred", "-u", "note.md"])
+    mock_run.assert_has_calls([expected_age_call, expected_shred_call])
+
+# ВИПРАВЛЕНО: Використовуємо фікстуру `fs` напряму
+def test_skip_up_to_date_file(mocker, fs):
+    """
+    Тестує, що файл не перешифровується, якщо він не змінювався.
+    """
+    # 1. Налаштування: створюємо .md та .md.age, де .age новіший
+    fs.create_file("note.md")
+    fs.create_file("note.md.age")
+    # Встановлюємо час модифікації: .md - 100с тому, .age - зараз
+    os.utime("note.md", (os.path.getmtime("note.md.age") - 100, os.path.getmtime("note.md.age") - 100))
+
+    mocker.patch.object(config, 'AGE_RECIPIENT', 'age1testrecipient')
+    mock_run = mocker.patch('secure_repo.system.run_command')
+
     # 2. Виклик функції
     count = crypto.encrypt_unencrypted_files()
     
-    # 3. Перевірки (Assertions)
-    # Перевіряємо, що було зашифровано 1 файл
-    assert count == 1
-    
-    # Перевіряємо, що `age` і `shred` були викликані з правильними аргументами
-    # Створюємо очікувані виклики
-    expected_age_call = mocker.call(["age", "-r", "age1testrecipient", "-o", "note.md.age", "note.md"])
-    expected_shred_call = mocker.call(["shred", "-u", "note.md"])
-    
-    # Перевіряємо, чи були ці виклики серед усіх викликів mock_run
-    mock_run.assert_has_calls([expected_age_call, expected_shred_call], any_order=True)
+    # 3. Перевірки
+    assert count == 0
+    mock_run.assert_not_called()

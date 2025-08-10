@@ -4,3 +4,4 @@ colorama
 pytest
 pytest-mock
 GitPython
+pyfakefs

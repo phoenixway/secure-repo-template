@@ -54,3 +54,8 @@ __pycache__/
 *.pyc
 venv/
 .pytest_cache/
+
+# --- Secrets Directory ---
+# Ignore all content inside the secrets directory, but keep the directory itself.
+secrets/*
+!secrets/.gitkeep
