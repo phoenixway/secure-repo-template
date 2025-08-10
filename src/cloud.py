@@ -3,7 +3,7 @@ import datetime
 import os
 import tarfile
 
-def create_and_upload_backup():
+def create_and_upload_archive():
     """Creates an encrypted archive and uploads it to all configured rclone remotes."""
     # ОНОВЛЕНО: Використовуємо функції для отримання конфігурації
     cloud_remotes = config.get_config("CLOUD_REMOTES")

@@ -41,6 +41,15 @@ def _install_rclone():
     ui.echo_warning("  curl https://rclone.org/install.sh | sudo bash")
     return False 
 
+def _install_gh():
+    """Provides instructions to install the GitHub CLI."""
+    ui.echo_info("To automate GitHub operations, the official GitHub CLI ('gh') is required.")
+    ui.echo_info("Please install it by following the instructions for your OS:")
+    ui.echo_warning("  https://github.com/cli/cli#installation")
+    return False
+
+
+
 def _install_age():
     """Downloads age and provides the user with commands to install it."""
     ui.echo_info("Attempting to download 'age' from GitHub releases...")
@@ -141,6 +150,7 @@ def check_dependencies():
         "rclone": _install_rclone,
         "shred": None,
         "fzf": _install_fzf,
+        "gh": _install_gh,
     }
     
     final_ok = True
