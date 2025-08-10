@@ -1,6 +1,7 @@
 import os
 from . import ui, system, config
 
+# Переконуємося, що константа визначена
 ENCRYPTABLE_EXTENSIONS = ('.md', '.txt', '.doc', '.docx', '.rtf')
 VAULT_DIR = "vault"
 
@@ -10,6 +11,7 @@ def encrypt_unencrypted_files():
         ui.echo_error("AGE_RECIPIENT is not set in .env file.")
         return 0
         
+    # Використовуємо константу шляху з модуля конфігурації
     if not os.path.isdir(config.VAULT_DIR):
         ui.echo_info(f"Directory '{config.VAULT_DIR}' not found. Nothing to encrypt.")
         return 0
